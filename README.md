@@ -56,6 +56,6 @@ Designed and directed by the author; built with AI coding agents. The three core
 
 ## License and credits
 
-No license has been chosen for this project yet; the owner will choose one before it is published. `NOTICE` covers only the upstream work it builds on.
+Released under the MIT License; see `LICENSE`. `NOTICE` lists the upstream work it builds on.
 
 The project layout (dbt-core + dbt-duckdb, `models/staging` → marts, a local DuckDB profile) follows dbt-labs' `jaffle_shop_duckdb` (Apache-2.0); see `NOTICE`. Event attribute names follow the OpenTelemetry GenAI semantic conventions where they apply.
