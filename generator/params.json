@@ -1,0 +1,45 @@
+{
+  "_note": "Invented parameters for a synthetic multi-agent workflow. They are deliberately round numbers and are not derived from any real system.",
+  "seed": 20250106,
+  "start_date": "2025-01-06",
+  "days": 60,
+  "tasks_per_day": 12,
+  "filler_events_per_day": 300,
+  "needs_decision_share_pct": 40,
+  "decision_wait_median_minutes": 30,
+  "decision_wait_sigma": 1.0,
+  "review_block_share_pct": 25,
+  "work_blocks_per_day": 3,
+  "work_block_minutes": [60, 180],
+  "heartbeat_minutes": 5,
+  "session_gap_minutes": 15,
+  "dirt": {
+    "duplicate_pct": 1,
+    "late_arrival_pct": 2,
+    "malformed_rows_per_day": 2,
+    "plus8_offset_pct": 30
+  },
+  "projects": [
+    {"project_id": "project_alpha", "domain": "web"},
+    {"project_id": "project_bravo", "domain": "data"},
+    {"project_id": "project_charlie", "domain": "infra"},
+    {"project_id": "project_delta", "domain": "docs"},
+    {"project_id": "project_echo", "domain": "research"},
+    {"project_id": "project_foxtrot", "domain": "web"}
+  ],
+  "agents": [
+    {"agent_id": "agent_01", "role": "coordinator", "provider": "anthropic", "model": "model-a-large", "effort": "high"},
+    {"agent_id": "agent_02", "role": "coordinator", "provider": "openai", "model": "model-b-large", "effort": "high"},
+    {"agent_id": "agent_03", "role": "cto", "provider": "anthropic", "model": "model-a-large", "effort": "high"},
+    {"agent_id": "agent_04", "role": "writer", "provider": "anthropic", "model": "model-a-large", "effort": "high"},
+    {"agent_id": "agent_05", "role": "writer", "provider": "openai", "model": "model-b-medium", "effort": "high"},
+    {"agent_id": "agent_06", "role": "reviewer", "provider": "openai", "model": "model-b-large", "effort": "high"},
+    {"agent_id": "agent_07", "role": "desk", "provider": "anthropic", "model": "model-a-medium", "effort": "medium"},
+    {"agent_id": "agent_08", "role": "writer", "provider": "google", "model": "model-c-large", "effort": "high"}
+  ],
+  "model_changes": [
+    {"agent_id": "agent_04", "day": 20, "model": "model-a-medium", "effort": "high"},
+    {"agent_id": "agent_06", "day": 35, "model": "model-b-medium", "effort": "xhigh"},
+    {"agent_id": "agent_04", "day": 45, "model": "model-a-large", "effort": "high"}
+  ]
+}

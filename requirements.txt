@@ -1,0 +1,4 @@
+# Pinned for the reproducible build; ~44 MB of wheels on Python 3.12 (60 packages with dependencies).
+duckdb==2.0.1
+dbt-core==1.12.7
+dbt-duckdb==1.11.1

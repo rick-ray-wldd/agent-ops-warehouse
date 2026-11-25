@@ -1,0 +1,8 @@
+agent-ops-warehouse
+
+The project layout follows dbt-labs/jaffle_shop_duckdb (https://github.com/dbt-labs/jaffle_shop_duckdb),
+licensed under the Apache License, Version 2.0. No files from that repository are included in this
+phase; if any are copied or adapted later, they keep their original license notice and are listed here.
+
+Event attribute names follow the OpenTelemetry Semantic Conventions for Generative AI
+(https://opentelemetry.io/docs/specs/semconv/gen-ai/), Apache License 2.0.

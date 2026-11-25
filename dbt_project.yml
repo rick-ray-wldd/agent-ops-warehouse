@@ -1,0 +1,24 @@
+# Layout follows dbt-labs/jaffle_shop_duckdb (Apache-2.0): dbt-core + dbt-duckdb, models/staging -> marts.
+name: agent_ops_warehouse
+version: '0.1.0'
+config-version: 2
+profile: agent_ops_warehouse
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests_sql"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  session_gap_minutes: 15   # heartbeats further apart than this start a new work session
+  volume_band_pct: 50       # daily volume this far from its 7-day average is flagged (warn)
+
+models:
+  agent_ops_warehouse:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

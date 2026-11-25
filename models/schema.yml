@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: One row per event_id, typed, UTC, first delivery kept.
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: event_time_utc
+        tests: [not_null]
+      - name: kind
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['task.dispatched', 'agent.working', 'agent.needs_decision', 'human.decision',
+                       'agent.done', 'review.passed', 'review.blocked', 'human.prompted', 'agent.notified']
+  - name: stg_events__rejected
+    columns:
+      - name: reject_reason
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['missing_event_time', 'unparsable_event_time', 'missing_kind']
+  - name: dim_agent
+    columns:
+      - name: agent_version_key
+        tests: [unique, not_null]
+  - name: dim_project
+    columns:
+      - name: project_id
+        tests: [unique, not_null]
+  - name: dim_date
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+  - name: fct_event
+    description: "Grain: one event. Incremental on loaded_at_utc."
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: project_id
+        tests:
+          - relationships: {to: ref('dim_project'), field: project_id}
+      - name: date_key
+        tests:
+          - relationships: {to: ref('dim_date'), field: date_key}
+      - name: agent_version_key
+        tests:
+          - not_null
+          - relationships: {to: ref('dim_agent'), field: agent_version_key}
+  - name: fct_task_state_history
+    columns:
+      - name: state
+        tests:
+          - accepted_values: {values: ['inbox', 'working', 'blocked', 'review', 'done']}
+  - name: int_decision_pairs
+    columns:
+      - name: question_event_id
+        tests: [unique, not_null]
+  - name: mart_rework_by_stage
+    columns:
+      - name: stage
+        tests:
+          - unique
+          - accepted_values: {values: ['dispatch', 'execution', 'review']}

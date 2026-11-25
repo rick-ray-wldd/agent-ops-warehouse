@@ -1,0 +1,8 @@
+# Local only: one DuckDB file in the project folder. No credentials, no network.
+agent_ops_warehouse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: warehouse.duckdb
+      threads: 4

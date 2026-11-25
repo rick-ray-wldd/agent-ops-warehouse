@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  # Daily batches as the exporter lands them (data/landing/<table>/batch_<day>.csv). All text on purpose:
+  # staging owns the types, so a bad value is rejected there instead of failing the load.
+  - name: landing
+    meta:
+      external_location: "read_csv('data/landing/{name}/*.csv', header = true, all_varchar = true, filename = true)"
+    tables:
+      - name: events
+      - name: presence
+      - name: task_changes
+      - name: rework
+  # Small reference files, replaced in full on every export.
+  - name: reference
+    meta:
+      external_location: "read_csv('data/raw/{name}.csv', header = true, all_varchar = true)"
+    tables:
+      - name: agents
+      - name: agent_model_changes
+      - name: projects

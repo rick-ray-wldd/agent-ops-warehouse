@@ -1,0 +1,34 @@
+#!/bin/sh
+# One command, generate -> land -> build -> incremental -> full-refresh comparison -> tests.
+# Needs the venv from `make venv` (duckdb, dbt-core, dbt-duckdb). Exits non-zero on the first failure.
+set -eu
+cd "$(dirname "$0")/.."
+VENV=${VENV:-$HOME/.venvs/agent-ops-warehouse}
+PY="$VENV/bin/python"
+DBT="$VENV/bin/dbt --no-use-colors"
+FIRST_LOAD_THROUGH=${FIRST_LOAD_THROUGH:-2025-02-14}
+
+echo "== 1. generate synthetic data and the answer key"
+python3 -I generator/generate.py
+python3 -I -m unittest discover -s tests
+
+echo "== 2. first load: batches through $FIRST_LOAD_THROUGH, full build"
+rm -f warehouse.duckdb
+python3 -I scripts/land.py --reset --through "$FIRST_LOAD_THROUGH"
+$DBT run --profiles-dir . --full-refresh
+
+echo "== 3. the rest of the batches arrive: incremental run"
+python3 -I scripts/land.py --all
+$DBT run --profiles-dir .
+INCREMENTAL=$("$PY" scripts/checksum.py fct_event)
+
+echo "== 4. full refresh must give the same fact table"
+$DBT run --profiles-dir . --full-refresh
+FULL=$("$PY" scripts/checksum.py fct_event)
+echo "incremental: $INCREMENTAL"
+echo "full:        $FULL"
+[ "$INCREMENTAL" = "$FULL" ] || { echo "FAIL: incremental and full refresh differ"; exit 1; }
+
+echo "== 5. data-quality and reference tests"
+$DBT test --profiles-dir .
+echo "PIPELINE OK"
