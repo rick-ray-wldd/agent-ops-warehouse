@@ -33,4 +33,7 @@ echo "full:        $FULL"
 
 echo "== 5. data-quality and reference tests"
 $DBT test --profiles-dir .
+
+echo "== 6. exercise grader, end to end on the built warehouse"
+"$PY" -m unittest discover -s tests -p test_grader.py -v
 echo "PIPELINE OK"

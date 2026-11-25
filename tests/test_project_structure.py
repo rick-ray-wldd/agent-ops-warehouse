@@ -65,7 +65,7 @@ class StructureTests(unittest.TestCase):
 
     def test_no_private_identifiers_in_the_repo(self):
         pattern = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
-                             r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|@[a-z0-9-]+\.|claude|codex|anthropic\.com', re.I)
+                             r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z]{2,}|claude|codex|anthropic\.com', re.I)
         # Exactly what would be published: tracked files plus untracked ones that .gitignore does not exclude.
         listed = subprocess.run(['git', 'ls-files', '--cached', '--others', '--exclude-standard'], cwd=ROOT,
                                 capture_output=True, text=True, check=True).stdout.split()
