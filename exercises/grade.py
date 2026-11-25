@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Grade the three exercises against the Python answer key. Needs the built warehouse.duckdb (make build).
 
-usage: python3 exercises/grade.py [1|2|3 ...]
+usage: python3 exercises/grade.py [--dir FOLDER] [1|2|3 ...]   (FOLDER defaults to exercises/)
 """
 from pathlib import Path
 import json
@@ -18,9 +18,9 @@ CHECKS = {
 }
 
 
-def grade(con, number):
+def grade(con, number, folder):
     file, section, key, fields = CHECKS[number]
-    sql = (ROOT / 'exercises' / file).read_text()
+    sql = (folder / file).read_text()
     try:
         cur = con.execute(sql)
     except duckdb.Error as exc:
@@ -43,10 +43,13 @@ def grade(con, number):
 
 
 def main(argv):
+    folder = ROOT / 'exercises'
+    if argv[:1] == ['--dir']:
+        folder, argv = Path(argv[1]).resolve(), argv[2:]
     con = duckdb.connect(str(ROOT / 'warehouse.duckdb'), read_only=True)
     ok_all = True
     for n in (argv or sorted(CHECKS)):
-        ok, why = grade(con, n)
+        ok, why = grade(con, n, folder)
         ok_all &= ok
         print(f'exercise {n}: {"PASS" if ok else "FAIL"} - {why}')
     return 0 if ok_all else 1

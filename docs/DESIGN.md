@@ -30,6 +30,11 @@ The generator writes these as CSV; everything lands as text, and staging owns th
 ## Event attributes
 Agent events carry model metadata named after the OpenTelemetry GenAI semantic conventions: `gen_ai_system` (provider), `gen_ai_request_model`, `gen_ai_usage_input_tokens`, `gen_ai_usage_output_tokens`. Dots become underscores in column names. The provider attribute has been renamed in newer versions of the conventions, so check the current spec before publishing.
 
+## What the real data taught
+The same models were run once against a private, real event log of the same shape (read-only, aggregates only, nothing kept). Two things only show up on real data:
+- **Heartbeats are not presence.** The real presence sampler keeps beating while the person is away, so gaps-and-islands on heartbeats alone merges whole weeks into one "session". On real data, sessions should come from the explicit away/back events. The synthetic data only beats during work blocks, which is why the simple rule works there: an example of a test set that is too kind.
+- **Categories grow.** Real rework records use a fourth stage that the synthetic data never produces. The accepted-values test is what catches that; it should fail loudly, not be widened silently.
+
 ## What is out of scope
 - Real-time streaming: batches are daily. The same models would sit behind a streaming ingest (for example Kafka into a lakehouse table); the modelling and tests would not change.
 - Cost in money: token counts are kept; prices change and belong in a separate, dated price table.

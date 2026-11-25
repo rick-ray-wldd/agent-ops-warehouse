@@ -1,6 +1,6 @@
 select
     rework_id,
-    {{ utc_timestamp('at') }} as at_utc,
+    {{ utc_timestamp('"at"') }} as at_utc,
     task_id,
     stage
 from {{ source('landing', 'rework') }}

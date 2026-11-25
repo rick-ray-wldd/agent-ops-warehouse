@@ -5,7 +5,8 @@ set -eu
 cd "$(dirname "$0")/.."
 VENV=${VENV:-$HOME/.venvs/agent-ops-warehouse}
 PY="$VENV/bin/python"
-DBT="$VENV/bin/dbt --no-use-colors"
+export DO_NOT_TRACK=1 DBT_SEND_ANONYMOUS_USAGE_STATS=false
+DBT="$VENV/bin/dbt"
 FIRST_LOAD_THROUGH=${FIRST_LOAD_THROUGH:-2025-02-14}
 
 echo "== 1. generate synthetic data and the answer key"
@@ -16,6 +17,7 @@ echo "== 2. first load: batches through $FIRST_LOAD_THROUGH, full build"
 rm -f warehouse.duckdb
 python3 -I scripts/land.py --reset --through "$FIRST_LOAD_THROUGH"
 $DBT run --profiles-dir . --full-refresh
+echo "after first load: $("$PY" scripts/checksum.py fct_event)"
 
 echo "== 3. the rest of the batches arrive: incremental run"
 python3 -I scripts/land.py --all

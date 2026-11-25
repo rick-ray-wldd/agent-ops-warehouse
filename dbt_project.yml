@@ -10,6 +10,10 @@ test-paths: ["tests_sql"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
+flags:
+  send_anonymous_usage_stats: false   # no telemetry from local runs
+  use_colors: false
+
 vars:
   session_gap_minutes: 15   # heartbeats further apart than this start a new work session
   volume_band_pct: 50       # daily volume this far from its 7-day average is flagged (warn)

@@ -2,6 +2,7 @@
 grader agree, and nothing in the repo looks like a private identifier."""
 from pathlib import Path
 import re
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,10 +66,14 @@ class StructureTests(unittest.TestCase):
     def test_no_private_identifiers_in_the_repo(self):
         pattern = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
                              r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|@[a-z0-9-]+\.|claude|codex|anthropic\.com', re.I)
-        for f in ROOT.rglob('*'):
+        # Exactly what would be published: tracked files plus untracked ones that .gitignore does not exclude.
+        listed = subprocess.run(['git', 'ls-files', '--cached', '--others', '--exclude-standard'], cwd=ROOT,
+                                capture_output=True, text=True, check=True).stdout.split()
+        self.assertTrue(listed)
+        for f in (ROOT / name for name in listed):
             if f == Path(__file__).resolve():
                 continue  # this file spells the patterns out
-            if f.is_file() and '.git' not in f.parts and 'data' not in f.parts and f.suffix in {'.py', '.sql', '.md', '.yml', '.json', '.txt', ''}:
+            if f.is_file() and f.suffix in {'.py', '.sql', '.md', '.yml', '.json', '.txt', '.sh', ''}:
                 hits = pattern.findall(text(f))
                 self.assertFalse(hits, f'{f.relative_to(ROOT)}: {hits[:3]}')
 

@@ -2,7 +2,7 @@
 
 A small, complete data warehouse for the event stream of a multi-agent AI workflow: coordinators dispatch tasks to writer agents, reviewers pass or send work back, and a human answers the questions agents raise. The warehouse answers one operational question end to end: **is the human waiting on the agents, or are the agents waiting on the human?**
 
-> **Status: phase 1 (design, generator, SQL drafts).** The generator and its tests run today with the Python standard library. The dbt models and tests are written but have **not been executed yet**; they need DuckDB and dbt, which are installed in phase 2. Until then, treat the SQL as a draft.
+> **Status:** the whole pipeline runs and passes (`make all`): 22 models, 34 data tests, and the incremental and full-refresh fact tables have the same fingerprint. Tested with Python 3.12, DuckDB 2.0.1, dbt-core 1.12.7 and dbt-duckdb 1.11.1. The same models were also run against a private, real event log of the same shape, read-only and kept out of this repo.
 
 ## Pipeline
 
@@ -33,7 +33,7 @@ One command runs all of it (`make all`): generate → first load (40 days) → i
 
 ```
 make generate          # standard library only
-make test-generator    # 13 tests
+make test-generator    # generator and project-structure tests (standard library)
 make venv              # once: Python 3.12 venv with duckdb, dbt-core, dbt-duckdb (~44 MB)
 make all               # the whole pipeline
 make exercises         # grade your own versions of the three core models (see exercises/)
