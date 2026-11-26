@@ -16,24 +16,50 @@ def text(p):
 
 PRIVATE = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
                      r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z]{2,}|claude|codex|anthropic\.com', re.I)
-# The one public link allowed: README.md's single list item under "## Related" that starts with exactly this text.
-# Only that link destination is masked; the rest of the line, every other line and every other file are scanned as
-# written. If the item is missing, sits outside that section or appears twice, nothing is masked and the scan fails.
-PUBLIC_LINK_ITEM = '- [orca-coordination-handbook](https://github.com/rick-ray-wldd/orca-coordination-handbook): '
+# The one public link allowed, checked by a deliberately narrow format rule rather than a Markdown parser. README.md
+# may mask it only when all of these hold; otherwise nothing is masked and the scan fails:
+# - the URL occurs exactly once in the file;
+# - that line starts with PUBLIC_LINK_ITEM at column 0, right after a blank line that follows "## Related" at
+#   column 0, which itself follows a blank line;
+# - no line before it is inside a fenced code block, starts an HTML block, or starts with a tab.
+# Only the link destination is masked; the rest of that line is still scanned.
+PUBLIC_URL = 'https://github.com/rick-ray-wldd/orca-coordination-handbook'
+PUBLIC_LINK_ITEM = f'- [orca-coordination-handbook]({PUBLIC_URL}): '
+FENCE = re.compile(r'(`{3,}|~{3,})(.*)$')
+
+
+def public_link_line(lines):
+    """Index of the approved README line, or None when anything about it is ambiguous."""
+    if sum(line.count(PUBLIC_URL) for line in lines) != 1:
+        return None
+    i = next(n for n, line in enumerate(lines) if PUBLIC_URL in line)
+    if (not lines[i].startswith(PUBLIC_LINK_ITEM) or i < 2 or lines[i - 1] != '' or lines[i - 2] != '## Related'
+            or (i >= 3 and lines[i - 3] != '')):
+        return None
+    fence = None
+    for line in lines[:i]:
+        if line.startswith('\t'):
+            return None
+        indent = len(line) - len(line.lstrip(' '))
+        if indent > 3:
+            continue  # indented code, or a continuation line; it cannot open or close a block
+        m = FENCE.match(line[indent:])
+        if fence is None:
+            if m and not (m.group(1)[0] == '`' and '`' in m.group(2)):
+                fence = (m.group(1)[0], len(m.group(1)))
+            elif line[indent:].startswith('<'):
+                return None  # an HTML block could hide or wrap what follows
+        elif m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
+            fence = None
+    return None if fence else i
 
 
 def private_hits(name, body):
     if name == 'README.md':
         lines = body.split('\n')
-        heading, found = None, []
-        for i, line in enumerate(lines):
-            if line.startswith('#'):
-                heading = line.strip()
-            elif line.startswith(PUBLIC_LINK_ITEM):
-                found.append((i, heading))
-        if len(found) == 1 and found[0][1] == '## Related':
-            i = found[0][0]
-            lines[i] = '- [orca-coordination-handbook](<public link>): ' + lines[i][len(PUBLIC_LINK_ITEM):]
+        i = public_link_line(lines)
+        if i is not None:
+            lines[i] = lines[i].replace(PUBLIC_URL, '<public link>', 1)
             body = '\n'.join(lines)
     return PRIVATE.findall(body)
 
@@ -101,27 +127,38 @@ class StructureTests(unittest.TestCase):
                 self.assertFalse(hits, f'{name}: {hits[:3]}')
 
     def test_public_link_exception_is_narrow(self):
-        url = 'https://github.com/rick-ray-wldd/orca-coordination-handbook'
+        url = PUBLIC_URL
         item = f'- [orca-coordination-handbook]({url}): the workflow.'
-        self.assertFalse(private_hits('README.md', f'# T\n\n## Related\n\n{item}\n\n## License\n'))
+        good = f'# T\n\n```\ncode\n```\n\n## Related\n\n{item}\n\n## License\n'
+        self.assertFalse(private_hits('README.md', good))
         self.assertFalse(private_hits('README.md', text(ROOT / 'README.md')))  # the real README passes
+        rel = '## Related\n\n'
         for name, body in [
-            ('README.md', f'## Related\n\n- [orca-coordination-handbook](x{url}): a'),          # prefix
-            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}-old): a'),       # longer repo name
-            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}/blob/x): a'),    # path
-            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}?q=1): a'),       # query
-            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}#top): a'),       # fragment
-            ('README.md', f'## Related\n\n{item} rick'),                                        # rest of the line
-            ('README.md', f'## Related\n\nray-x {item}'),                                       # not at line start
-            ('README.md', f'## Related\n\nsee {url}'),                                          # plain text
-            ('README.md', f'## Related\n\nsee `]({url})`'),                                     # inline code
-            ('README.md', f'## Related\n\n[a](https://example.invalid/(]({url}))x)'),          # inside a longer destination
-            ('README.md', f'## Related\n\n{item}\n{item}'),                                     # twice
-            ('README.md', f'## Usage\n\n{item}'),                                               # wrong section
+            ('README.md', f'{rel}- [orca-coordination-handbook](x{url}): a'),          # prefix
+            ('README.md', f'{rel}- [orca-coordination-handbook]({url}-old): a'),       # longer repo name
+            ('README.md', f'{rel}- [orca-coordination-handbook]({url}/blob/x): a'),    # path
+            ('README.md', f'{rel}- [orca-coordination-handbook]({url}?q=1): a'),       # query
+            ('README.md', f'{rel}- [orca-coordination-handbook]({url}#top): a'),       # fragment
+            ('README.md', f'{rel}{item} rick'),                                        # rest of the line
+            ('README.md', f'{rel}ray-x {item}'),                                       # not at line start
+            ('README.md', f'{rel}see {url}'),                                          # plain text
+            ('README.md', f'{rel}see `]({url})`'),                                     # inline code
+            ('README.md', f'{rel}[a](https://example.invalid/(]({url}))x)'),          # inside a longer destination
+            ('README.md', f'{rel}{item}\n{item}'),                                     # twice
+            ('README.md', f'{rel}{item}\n\nsee {url}'),                                # a second copy elsewhere
+            ('README.md', f'## Usage\n\n{item}'),                                     # wrong section
+            ('README.md', f' ## Usage\n\n{item}'),                                    # indented heading, wrong section
+            ('README.md', f'```\n{rel}{item}\n```\n'),                                 # heading and item in a code block
+            ('README.md', f'{rel}```\n{item}\n```\n'),                                 # item in a code block
+            ('README.md', f'~~~~\n```\n~~~\n{rel}{item}\n'),                           # still inside the ~~~~ fence
+            ('README.md', f'<!--\n{rel}{item}\n-->\n'),                                # inside an HTML comment
+            ('README.md', f'<details>\n\n{rel}{item}\n'),                              # after an HTML block start
+            ('README.md', f'\t```\n{rel}{item}\n'),                                    # tab-indented lines are refused
+            ('README.md', f'Intro\n## Related\n\n{item}'),                             # heading glued to a paragraph
             ('README.md', '## Related\n\n- [other](https://github.com/rick-ray-wldd/other): a'),
-            ('docs/DESIGN.md', f'## Related\n\n{item}'),                                        # another file
+            ('docs/DESIGN.md', f'{rel}{item}'),                                        # another file
         ]:
-            self.assertTrue(private_hits(name, body), f'{name}: {body}')
+            self.assertTrue(private_hits(name, body), f'{name}: {body!r}')
 
 if __name__ == '__main__':
     unittest.main()
