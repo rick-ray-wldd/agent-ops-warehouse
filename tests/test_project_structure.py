@@ -14,8 +14,17 @@ def text(p):
     return p.read_text(encoding='utf-8')
 
 
-# The one public link the README may carry; anything else that names the owner still fails the scan.
-PUBLIC_LINKS = ('https://github.com/rick-ray-wldd/orca-coordination-handbook',)
+PRIVATE = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
+                     r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z]{2,}|claude|codex|anthropic\.com', re.I)
+# The one public link allowed: only in README.md, and only as this exact Markdown link destination. Anything
+# around it, a longer URL, or the same URL in another file is scanned as written and still fails.
+PUBLIC_LINK = '](https://github.com/rick-ray-wldd/orca-coordination-handbook)'
+
+
+def private_hits(name, body):
+    if name == 'README.md':
+        body = body.replace(PUBLIC_LINK, '](<public link>)')
+    return PRIVATE.findall(body)
 
 
 class StructureTests(unittest.TestCase):
@@ -68,22 +77,35 @@ class StructureTests(unittest.TestCase):
         self.assertNotIn('event_time', block)
 
     def test_no_private_identifiers_in_the_repo(self):
-        pattern = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
-                             r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z]{2,}|claude|codex|anthropic\.com', re.I)
         # Exactly what would be published: tracked files plus untracked ones that .gitignore does not exclude.
-        listed = subprocess.run(['git', 'ls-files', '--cached', '--others', '--exclude-standard'], cwd=ROOT,
-                                capture_output=True, text=True, check=True).stdout.split()
+        listed = subprocess.run(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], cwd=ROOT,
+                                capture_output=True, text=True, check=True).stdout.split('\0')
+        listed = [name for name in listed if name]
         self.assertTrue(listed)
-        for f in (ROOT / name for name in listed):
+        for name in listed:
+            f = ROOT / name
             if f == Path(__file__).resolve():
                 continue  # this file spells the patterns out
             if f.is_file() and f.suffix in {'.py', '.sql', '.md', '.yml', '.json', '.txt', '.sh', ''}:
-                body = text(f)
-                for link in PUBLIC_LINKS:
-                    body = body.replace(link, '')
-                hits = pattern.findall(body)
-                self.assertFalse(hits, f'{f.relative_to(ROOT)}: {hits[:3]}')
+                hits = private_hits(name, text(f))
+                self.assertFalse(hits, f'{name}: {hits[:3]}')
 
+    def test_public_link_exception_is_narrow(self):
+        url = 'https://github.com/rick-ray-wldd/orca-coordination-handbook'
+        self.assertFalse(private_hits('README.md', f'- [handbook]({url}): the workflow.'))
+        for name, body in [
+            ('README.md', f'[handbook](x{url})'),              # prefix
+            ('README.md', f'[handbook]({url}-old)'),           # longer repo name
+            ('README.md', f'[handbook]({url}/blob/main/x)'),   # path
+            ('README.md', f'[handbook]({url}?q=1)'),           # query
+            ('README.md', f'[handbook]({url}#top)'),           # fragment
+            ('README.md', f'[handbook]({url})rick'),           # text glued after
+            ('README.md', f'ray-x[handbook]({url})'),          # text glued before
+            ('README.md', f'see {url}'),                       # bare URL, not a link destination
+            ('README.md', '[other](https://github.com/rick-ray-wldd/other)'),
+            ('docs/DESIGN.md', f'[handbook]({url})'),          # another file
+        ]:
+            self.assertTrue(private_hits(name, body), f'{name}: {body}')
 
 if __name__ == '__main__':
     unittest.main()

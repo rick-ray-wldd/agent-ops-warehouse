@@ -56,7 +56,7 @@ Designed and directed by the author; built with AI coding agents. The three core
 
 ## Related
 
-- [orca-coordination-handbook](https://github.com/rick-ray-wldd/orca-coordination-handbook): the multi-agent coordination setup whose kind of event stream this warehouse models: coordinators, writer agents, reviewers and human decisions. The handbook describes the workflow; this repo measures it.
+- [orca-coordination-handbook](https://github.com/rick-ray-wldd/orca-coordination-handbook): the multi-agent coordination setup whose kind of event stream this warehouse models: coordinators, writer agents, reviewers and human decisions. The handbook describes the workflow. This warehouse demonstrates how to measure a synthetic event stream of that kind.
 
 ## License and credits
 
