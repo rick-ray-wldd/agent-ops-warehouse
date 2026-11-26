@@ -54,6 +54,10 @@ All data is **synthetic**. The generator's parameters (`generator/params.json`) 
 
 Designed and directed by the author; built with AI coding agents. The three core models in `exercises/` are meant to be rewritten by hand from a blank file. See `exercises/README.md`.
 
+## Related
+
+- [orca-coordination-handbook](https://github.com/rick-ray-wldd/orca-coordination-handbook): the multi-agent coordination setup whose kind of event stream this warehouse models: coordinators, writer agents, reviewers and human decisions. The handbook describes the workflow; this repo measures it.
+
 ## License and credits
 
 Released under the MIT License; see `LICENSE`. `NOTICE` lists the upstream work it builds on.

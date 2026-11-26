@@ -14,6 +14,10 @@ def text(p):
     return p.read_text(encoding='utf-8')
 
 
+# The one public link the README may carry; anything else that names the owner still fails the scan.
+PUBLIC_LINKS = ('https://github.com/rick-ray-wldd/orca-coordination-handbook',)
+
+
 class StructureTests(unittest.TestCase):
     def test_every_ref_points_at_a_model(self):
         for f in SQL_FILES:
@@ -74,7 +78,10 @@ class StructureTests(unittest.TestCase):
             if f == Path(__file__).resolve():
                 continue  # this file spells the patterns out
             if f.is_file() and f.suffix in {'.py', '.sql', '.md', '.yml', '.json', '.txt', '.sh', ''}:
-                hits = pattern.findall(text(f))
+                body = text(f)
+                for link in PUBLIC_LINKS:
+                    body = body.replace(link, '')
+                hits = pattern.findall(body)
                 self.assertFalse(hits, f'{f.relative_to(ROOT)}: {hits[:3]}')
 
 
