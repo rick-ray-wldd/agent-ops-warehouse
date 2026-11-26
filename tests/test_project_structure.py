@@ -21,11 +21,14 @@ PRIVATE = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-
 # - the URL occurs exactly once in the file;
 # - that line starts with PUBLIC_LINK_ITEM at column 0, right after a blank line that follows "## Related" at
 #   column 0, which itself follows a blank line;
-# - no line before it is inside a fenced code block, starts an HTML block, or starts with a tab.
+# - before it, every code fence is at column 0 and closed by a column-0 fence of the same character, at least as
+#   long, followed only by ASCII spaces or tabs; any indented fence-like line (it may belong to a list or another
+#   container), any line starting with "<" (an HTML block) and any tab-indented line refuse the exception.
 # Only the link destination is masked; the rest of that line is still scanned.
 PUBLIC_URL = 'https://github.com/rick-ray-wldd/orca-coordination-handbook'
 PUBLIC_LINK_ITEM = f'- [orca-coordination-handbook]({PUBLIC_URL}): '
-FENCE = re.compile(r'(`{3,}|~{3,})(.*)$')
+FENCE = re.compile(r'`{3,}|~{3,}')
+CLOSING_FENCE = re.compile(r'(`{3,}|~{3,})[ \t]*')
 
 
 def public_link_line(lines):
@@ -38,21 +41,22 @@ def public_link_line(lines):
         return None
     fence = None
     for line in lines[:i]:
-        if line.startswith('\t'):
+        bare = line.lstrip()  # any whitespace, including non-ASCII
+        if line.startswith('\t') or bare.startswith('<'):
             return None
-        indent = len(line) - len(line.lstrip(' '))
-        if indent > 3:
-            continue  # indented code, or a continuation line; it cannot open or close a block
-        m = FENCE.match(line[indent:])
+        m = FENCE.match(bare)
+        if not m:
+            continue
+        if bare != line:
+            return None  # an indented fence may sit in a list or another container; do not guess
+        run = m.group(0)
         if fence is None:
-            if m and not (m.group(1)[0] == '`' and '`' in m.group(2)):
-                fence = (m.group(1)[0], len(m.group(1)))
-            elif line[indent:].startswith('<'):
-                return None  # an HTML block could hide or wrap what follows
-        elif m and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1] and not m.group(2).strip():
+            if run[0] == '`' and '`' in line[len(run):]:
+                return None  # not a valid opening fence; do not guess
+            fence = (run[0], len(run))
+        elif CLOSING_FENCE.fullmatch(line) and run[0] == fence[0] and len(run) >= fence[1]:
             fence = None
     return None if fence else i
-
 
 def private_hits(name, body):
     if name == 'README.md':
@@ -154,6 +158,11 @@ class StructureTests(unittest.TestCase):
             ('README.md', f'<!--\n{rel}{item}\n-->\n'),                                # inside an HTML comment
             ('README.md', f'<details>\n\n{rel}{item}\n'),                              # after an HTML block start
             ('README.md', f'\t```\n{rel}{item}\n'),                                    # tab-indented lines are refused
+            ('README.md', f'- list\n\n  ```\n```\n\n{rel}{item}\n'),                    # fence in a list item, then top level
+            ('README.md', f'- list\n\n  ~~~\n~~~\n\n{rel}{item}\n'),                    # same with tildes
+            ('README.md', f'```\n``` \n\n{rel}{item}\n'),                            # non-ASCII space after the close
+            ('README.md', f'```\n   ```\n\n{rel}{item}\n'),                              # indented close is refused
+            ('README.md', f'```py`x\n\n{rel}{item}\n'),                                   # backtick in the info string
             ('README.md', f'Intro\n## Related\n\n{item}'),                             # heading glued to a paragraph
             ('README.md', '## Related\n\n- [other](https://github.com/rick-ray-wldd/other): a'),
             ('docs/DESIGN.md', f'{rel}{item}'),                                        # another file
