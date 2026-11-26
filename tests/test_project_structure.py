@@ -16,16 +16,26 @@ def text(p):
 
 PRIVATE = re.compile(r'/Users/|\brick|\bray-|term_[0-9a-f]|run_[0-9a-f]|S-[0-9a-f]{8}|C0[A-Z0-9]{8}|'
                      r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b|[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z]{2,}|claude|codex|anthropic\.com', re.I)
-# The one public link allowed: only in README.md, and only as this exact Markdown link destination. Anything
-# around it, a longer URL, or the same URL in another file is scanned as written and still fails.
-PUBLIC_LINK = '](https://github.com/rick-ray-wldd/orca-coordination-handbook)'
+# The one public link allowed: README.md's single list item under "## Related" that starts with exactly this text.
+# Only that link destination is masked; the rest of the line, every other line and every other file are scanned as
+# written. If the item is missing, sits outside that section or appears twice, nothing is masked and the scan fails.
+PUBLIC_LINK_ITEM = '- [orca-coordination-handbook](https://github.com/rick-ray-wldd/orca-coordination-handbook): '
 
 
 def private_hits(name, body):
     if name == 'README.md':
-        body = body.replace(PUBLIC_LINK, '](<public link>)')
+        lines = body.split('\n')
+        heading, found = None, []
+        for i, line in enumerate(lines):
+            if line.startswith('#'):
+                heading = line.strip()
+            elif line.startswith(PUBLIC_LINK_ITEM):
+                found.append((i, heading))
+        if len(found) == 1 and found[0][1] == '## Related':
+            i = found[0][0]
+            lines[i] = '- [orca-coordination-handbook](<public link>): ' + lines[i][len(PUBLIC_LINK_ITEM):]
+            body = '\n'.join(lines)
     return PRIVATE.findall(body)
-
 
 class StructureTests(unittest.TestCase):
     def test_every_ref_points_at_a_model(self):
@@ -92,18 +102,24 @@ class StructureTests(unittest.TestCase):
 
     def test_public_link_exception_is_narrow(self):
         url = 'https://github.com/rick-ray-wldd/orca-coordination-handbook'
-        self.assertFalse(private_hits('README.md', f'- [handbook]({url}): the workflow.'))
+        item = f'- [orca-coordination-handbook]({url}): the workflow.'
+        self.assertFalse(private_hits('README.md', f'# T\n\n## Related\n\n{item}\n\n## License\n'))
+        self.assertFalse(private_hits('README.md', text(ROOT / 'README.md')))  # the real README passes
         for name, body in [
-            ('README.md', f'[handbook](x{url})'),              # prefix
-            ('README.md', f'[handbook]({url}-old)'),           # longer repo name
-            ('README.md', f'[handbook]({url}/blob/main/x)'),   # path
-            ('README.md', f'[handbook]({url}?q=1)'),           # query
-            ('README.md', f'[handbook]({url}#top)'),           # fragment
-            ('README.md', f'[handbook]({url})rick'),           # text glued after
-            ('README.md', f'ray-x[handbook]({url})'),          # text glued before
-            ('README.md', f'see {url}'),                       # bare URL, not a link destination
-            ('README.md', '[other](https://github.com/rick-ray-wldd/other)'),
-            ('docs/DESIGN.md', f'[handbook]({url})'),          # another file
+            ('README.md', f'## Related\n\n- [orca-coordination-handbook](x{url}): a'),          # prefix
+            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}-old): a'),       # longer repo name
+            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}/blob/x): a'),    # path
+            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}?q=1): a'),       # query
+            ('README.md', f'## Related\n\n- [orca-coordination-handbook]({url}#top): a'),       # fragment
+            ('README.md', f'## Related\n\n{item} rick'),                                        # rest of the line
+            ('README.md', f'## Related\n\nray-x {item}'),                                       # not at line start
+            ('README.md', f'## Related\n\nsee {url}'),                                          # plain text
+            ('README.md', f'## Related\n\nsee `]({url})`'),                                     # inline code
+            ('README.md', f'## Related\n\n[a](https://example.invalid/(]({url}))x)'),          # inside a longer destination
+            ('README.md', f'## Related\n\n{item}\n{item}'),                                     # twice
+            ('README.md', f'## Usage\n\n{item}'),                                               # wrong section
+            ('README.md', '## Related\n\n- [other](https://github.com/rick-ray-wldd/other): a'),
+            ('docs/DESIGN.md', f'## Related\n\n{item}'),                                        # another file
         ]:
             self.assertTrue(private_hits(name, body), f'{name}: {body}')
 
